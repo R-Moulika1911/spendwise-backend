@@ -28,7 +28,7 @@ API keys stay on the server (`GROQ_API_KEY`). Never put them in the Flutter app.
 ```bash
 # .env
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.1-8b-instant
+GROQ_MODEL=openai/gpt-oss-20b
 AI_DAILY_LIMIT=40
 ```
 

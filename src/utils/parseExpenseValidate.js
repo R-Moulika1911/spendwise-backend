@@ -79,20 +79,4 @@ function toIsoDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-export function extractJsonObject(text) {
-  const trimmed = String(text).trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const start = trimmed.indexOf('{');
-    const end = trimmed.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(trimmed.slice(start, end + 1));
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
+export { extractJsonObject } from './extractJson.js';

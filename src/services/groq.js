@@ -1,3 +1,5 @@
+import { extractJsonObject, isJsonValidateError } from '../utils/extractJson.js';
+
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export function groqConfigured() {
@@ -5,7 +7,7 @@ export function groqConfigured() {
 }
 
 export function groqModel() {
-  return process.env.GROQ_MODEL?.trim() || 'llama-3.1-8b-instant';
+  return process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-20b';
 }
 
 /**
@@ -64,22 +66,63 @@ export async function groqCompletion({
 }
 
 /**
- * Simple system+user JSON chat (Idea 1 style).
+ * JSON-oriented chat with retry + non-json fallback.
+ * gpt-oss models sometimes fail Groq's json_object validation.
  */
-export async function groqChat({ system, user, temperature = 0, maxTokens = 256 }) {
+export async function groqChat({
+  system,
+  user,
+  temperature = 0,
+  maxTokens = 512,
+}) {
+  const messages = [
+    { role: 'system', content: system },
+    { role: 'user', content: user },
+  ];
+
+  // Attempt 1–2: strict JSON mode
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const message = await groqCompletion({
+        messages,
+        temperature: attempt === 0 ? temperature : 0,
+        maxTokens,
+        jsonMode: true,
+      });
+      const content = message.content;
+      if (content && typeof content === 'string' && content.trim()) {
+        return content;
+      }
+    } catch (err) {
+      if (!isJsonValidateError(err) || attempt === 1) {
+        // fall through to plain-text attempt below on validate errors
+        if (!isJsonValidateError(err)) throw err;
+      }
+    }
+  }
+
+  // Attempt 3: no response_format — parse ourselves
+  const plainSystem = `${system}\n\nIMPORTANT: Return ONLY a valid JSON object. No markdown. No extra text.`;
   const message = await groqCompletion({
     messages: [
-      { role: 'system', content: system },
+      { role: 'system', content: plainSystem },
       { role: 'user', content: user },
     ],
-    temperature,
+    temperature: 0,
     maxTokens,
-    jsonMode: true,
+    jsonMode: false,
   });
   const content = message.content;
   if (!content || typeof content !== 'string') {
     const err = new Error('Empty response from Groq');
     err.status = 502;
+    throw err;
+  }
+  // Ensure it at least looks like JSON; callers still extractJsonObject
+  if (!extractJsonObject(content)) {
+    const err = new Error('Model returned non-JSON content');
+    err.status = 422;
+    err.details = { content: content.slice(0, 500) };
     throw err;
   }
   return content;

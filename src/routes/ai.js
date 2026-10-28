@@ -274,10 +274,12 @@ router.post('/insights', async (req, res) => {
 
     const system = [
       'You write a short monthly spending insight for a personal expense app.',
-      'Reply with ONLY JSON: {"summary":string,"tips":string[]}',
-      'summary: 2-4 sentences, plain language. Mention top categories and vs last month if useful.',
-      'tips: 2-3 practical tip strings to reduce overspend. No medical/financial product pitches.',
-      'Use only the numbers given. Do not invent merchants or individual transactions.',
+      'Respond with a single JSON object only.',
+      'Required keys: summary (string), tips (array of 2-3 short strings).',
+      'Example: {"summary":"...","tips":["...","..."]}',
+      'summary: 2-4 sentences. Mention top categories and vs last month if useful.',
+      'Use only the numbers given. Do not invent merchants or transactions.',
+      'Keep strings plain ASCII punctuation. No markdown.',
       `Currency: ${currency}`,
     ].join('\n');
 
@@ -291,8 +293,8 @@ router.post('/insights', async (req, res) => {
     const content = await groqChat({
       system,
       user,
-      temperature: 0.4,
-      maxTokens: 400,
+      temperature: 0.2,
+      maxTokens: 700,
     });
     const parsed = extractJsonObject(content) || {};
     const summary = String(parsed.summary ?? '').trim().slice(0, 1200);
@@ -301,7 +303,10 @@ router.post('/insights', async (req, res) => {
       : [];
 
     if (!summary) {
-      return res.status(422).json({ error: 'Could not generate insight' });
+      return res.status(422).json({
+        error: 'Could not generate insight',
+        details: { raw: String(content).slice(0, 400) },
+      });
     }
 
     return res.json({
@@ -350,9 +355,12 @@ router.post('/budget-advice', async (req, res) => {
 
     const system = [
       'You give brief personal budget advice for an expense tracker.',
-      'Reply with ONLY JSON: {"advice":string,"suggestedBudget":number|null,"alert":string|null}',
-      'advice: 2-4 short sentences. suggestedBudget: round number or null if budget already fine.',
+      'Respond with a single JSON object only.',
+      'Required keys: advice (string), suggestedBudget (number or null), alert (string or null).',
+      'Example: {"advice":"...","suggestedBudget":15000,"alert":null}',
+      'advice: 2-4 short sentences. suggestedBudget: round number or null if fine.',
       'alert: short warning if overspend risk, else null.',
+      'Keep strings plain. No markdown.',
       'Use only provided aggregates. Currency: ' + currency,
     ].join('\n');
 
@@ -367,8 +375,8 @@ router.post('/budget-advice', async (req, res) => {
     const content = await groqChat({
       system,
       user,
-      temperature: 0.3,
-      maxTokens: 350,
+      temperature: 0.2,
+      maxTokens: 600,
     });
     const parsed = extractJsonObject(content) || {};
     const advice = String(parsed.advice ?? '').trim().slice(0, 1200);
@@ -385,7 +393,10 @@ router.post('/budget-advice', async (req, res) => {
     const alert = alertRaw && alertRaw.length > 0 ? alertRaw.slice(0, 300) : null;
 
     if (!advice) {
-      return res.status(422).json({ error: 'Could not generate budget advice' });
+      return res.status(422).json({
+        error: 'Could not generate budget advice',
+        details: { raw: String(content).slice(0, 400) },
+      });
     }
 
     return res.json({
