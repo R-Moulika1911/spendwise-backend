@@ -1,5 +1,8 @@
 node_modules/
 .env
 serviceAccountKey.json
+FIREBASE_SERVICE_ACCOUNT.oneline.txt
+FIREBASE_SERVICE_ACCOUNT.base64.txt
+*firebase-adminsdk*.json
 *.log
 .DS_Store

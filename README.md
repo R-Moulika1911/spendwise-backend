@@ -96,8 +96,14 @@ The Flutter app attaches this automatically when Firebase is configured and the 
 
 1. Push this folder to GitHub (no `serviceAccountKey.json` / `.env`).
 2. New Web Service → build `npm install`, start `npm start`.
-3. Set env: `FIREBASE_SERVICE_ACCOUNT` (JSON one-liner), `GROQ_API_KEY`, `AI_DAILY_LIMIT`, `ALLOWED_ORIGINS=*`.
+3. Set env: `FIREBASE_SERVICE_ACCOUNT_BASE64` (base64 of the service-account JSON — avoids PEM `\n` issues), `GROQ_API_KEY`, `GROQ_MODEL=openai/gpt-oss-20b`, `AI_DAILY_LIMIT`, `ALLOWED_ORIGINS=*`.
 4. Put the public HTTPS URL in the app: Settings → Backend API URL.
+
+Generate base64 locally:
+
+```bash
+node -e "console.log(require('fs').readFileSync('serviceAccountKey.json').toString('base64'))"
+```
 
 ## Note
 
