@@ -1,0 +1,21 @@
+{
+  "name": "spendwise-backend",
+  "version": "1.0.0",
+  "description": "SpendWise REST API with Firebase Auth verification and Firestore access",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "firebase-admin": "^13.4.0",
+    "morgan": "^1.10.0"
+  }
+}
