@@ -36,13 +36,24 @@ AI_DAILY_LIMIT=40
 
 ```json
 {
-  "text": "Yesterday lunch 250",
+  "text": "Lunch 250 and auto 80 yesterday",
   "categories": ["Food", "Transport", "Other"],
   "today": "2026-10-28"
 }
 ```
 
-The model must return JSON only; the server validates amount, category (must be in the list), and date before responding. Daily limit is per Firebase uid (if Bearer token present) or IP.
+Response `data`:
+
+```json
+{
+  "expenses": [
+    { "amount": 250, "category": "Food", "date": "2026-10-27", "note": "Lunch" },
+    { "amount": 80, "category": "Transport", "date": "2026-10-27", "note": "auto" }
+  ]
+}
+```
+
+One or many expenses are supported. The model must return JSON only; the server validates amount, category (must be in the list), and date before responding. Daily limit is per Firebase uid (if Bearer token present) or IP.
 
 ### Ask agent (`POST /ai/ask`)
 

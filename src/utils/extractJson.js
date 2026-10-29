@@ -14,13 +14,29 @@ export function extractJsonObject(text) {
         // continue
       }
     }
-    const start = trimmed.indexOf('{');
-    const end = trimmed.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(trimmed.slice(start, end + 1));
-      } catch {
-        return null;
+
+    // Prefer array when it appears before an object (multi-expense replies).
+    const arrStart = trimmed.indexOf('[');
+    const objStart = trimmed.indexOf('{');
+    if (arrStart >= 0 && (objStart < 0 || arrStart < objStart)) {
+      const arrEnd = trimmed.lastIndexOf(']');
+      if (arrEnd > arrStart) {
+        try {
+          return JSON.parse(trimmed.slice(arrStart, arrEnd + 1));
+        } catch {
+          // fall through to object
+        }
+      }
+    }
+
+    if (objStart >= 0) {
+      const end = trimmed.lastIndexOf('}');
+      if (end > objStart) {
+        try {
+          return JSON.parse(trimmed.slice(objStart, end + 1));
+        } catch {
+          return null;
+        }
       }
     }
     return null;

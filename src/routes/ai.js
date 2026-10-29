@@ -9,7 +9,7 @@ import {
 import { groqChat, groqCompletion } from '../services/groq.js';
 import {
   extractJsonObject,
-  validateParsedExpense,
+  validateParsedExpenses,
 } from '../utils/parseExpenseValidate.js';
 import {
   guardQuota,
@@ -35,15 +35,17 @@ function todayFromBody(body) {
 /**
  * POST /ai/parse-expense
  * Body: { text, categories: string[], today?: "YYYY-MM-DD" }
+ * Response data: { expenses: [{ amount, category, date, note }, ...] }
+ * (also accepts legacy single-object model replies)
  */
 router.post('/parse-expense', async (req, res) => {
   try {
     if (!requireGroq(res)) return;
 
     const text = String(req.body?.text ?? '').trim();
-    if (!text || text.length > 500) {
+    if (!text || text.length > 1000) {
       return res.status(400).json({
-        error: 'text is required (max 500 characters)',
+        error: 'text is required (max 1000 characters)',
       });
     }
 
@@ -57,25 +59,36 @@ router.post('/parse-expense', async (req, res) => {
     if (!gated.ok) return;
 
     const system = [
-      'You convert a natural-language expense into JSON.',
+      'You convert natural-language expense text into JSON.',
+      'The text may describe ONE or MULTIPLE expenses (and, commas, also, plus, line breaks).',
       'Reply with ONLY a JSON object. No markdown. No explanation.',
-      'Schema: {"amount":number,"category":string,"date":"YYYY-MM-DD","note":string|null}',
+      'Schema: {"expenses":[{"amount":number,"category":string,"date":"YYYY-MM-DD","note":string|null}]}',
       'Rules:',
+      '- Always return an "expenses" array (length 1 when there is a single expense)',
+      '- Split clearly separate purchases into separate array items (max 20)',
       `- category MUST be exactly one of: ${JSON.stringify(categories)}`,
-      `- today is ${today}; resolve relative words (yesterday, today, last Monday) to YYYY-MM-DD`,
+      `- today is ${today} (use this as the calendar reference)`,
+      '- ALWAYS set date as YYYY-MM-DD for every expense — never omit date',
+      '- Resolve relative dates: today, yesterday, day before yesterday, last Monday/Tuesday/…, this Monday, last week',
+      '- Resolve absolute dates: 28 Oct, 28/10, 28-10-2026, Oct 28, 28th October → YYYY-MM-DD (assume current year if year missing)',
+      '- If a date word applies to several items ("yesterday lunch 250 and auto 80"), use that date on ALL of them',
+      '- If different dates appear ("lunch 250 yesterday, milk 50 today"), give each item its own date',
+      '- If NO date is mentioned for an item, use today',
       '- date must not be after today',
       '- amount is a positive number (strip currency words like rupees, rs, ₹)',
-      '- note is a short label without the amount (or null)',
+      '- note is a short label without the amount or date words (or null)',
       '- if category is unclear, use Other if present, else the closest match',
+      '- do not invent expenses that are not in the text',
     ].join('\n');
 
     const content = await groqChat({
       system,
       user: `Expense text: ${text}`,
       temperature: 0,
+      maxTokens: 1200,
     });
     const parsed = extractJsonObject(content);
-    const validated = validateParsedExpense(parsed, { categories, today });
+    const validated = validateParsedExpenses(parsed, { categories, today });
     if (!validated.ok) {
       return res.status(422).json({
         error: 'Could not parse expense',
